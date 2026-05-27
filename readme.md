@@ -1,44 +1,49 @@
-Focus — Pomodoro Timer
-A single-screen Pomodoro timer with daily session history, ambient background, audible cues, and responsive design.
+# Focus Pomodoro Timer
 
-How to Run
-Option 1 — Open directly (no install needed)
-Open index.html
-Just double-click index.html in your file manager, or drag it into any browser. No build step, no dependencies, no server required.
+A single-screen, lightweight Pomodoro timer designed for productivity. This application features daily session history, ambient background support, audible cues, and a fully responsive design.
 
-Option 2 — Serve locally (recommended for consistent audio behaviour)
-Python 3 (usually pre-installed on macOS / Linux)
+## Features
+
+*   **Timer Phases:** Dedicated modes for Focus, Short Break, and Long Break.
+*   **Customizable:** Configurable durations for all timer phases.
+*   **Audio Feedback:** Web Audio API integration for session-end alerts and countdown ticks.
+*   **Session Tracking:** Automated daily session history that persists across reloads and resets daily.
+*   **Gamification:** Integrated day-streak tracking using localStorage.
+*   **Keyboard Shortcuts:**
+    *   **Space**: Play/Pause
+    *   **R**: Reset timer
+    *   **S**: Skip current phase
+    *   **+/-**: Adjust time by 1 minute
+*   **Responsive Design:** Fully optimized for screens down to 360px wide.
+*   **Accessibility:** Built with ARIA roles, proper labeling, and full keyboard-accessible controls.
+
+## How to Run
+
+### Option 1 — Open Directly
+Simply locate the `index.html` file in your file manager and double-click it to open it in your default web browser. No build step or dependencies required.
+
+### Option 2 — Serve Locally (Recommended)
+For consistent audio behavior, it is recommended to serve the file through a local web server:
+
+**Using Python 3:**
+```bash
 python3 -m http.server 8080
-then open http://localhost:8080
+Then, navigate to http://localhost:8080 in your browser.
 
-Node.js
+Using Node.js:
+
+Bash
 npx serve .
-then open the printed URL
+Then, open the URL provided in your terminal.
 
 Requirements
-A modern browser (Chrome 90+, Firefox 88+, Safari 15+, Edge 90+)
+Browser: Modern web browser (Chrome 90+, Firefox 88+, Safari 15+, Edge 90+ or higher).
 
-No npm install, no build toolchain
+Environment: No npm install or complex build toolchain required.
 
 Project Structure
 Plaintext
 .
-├── index.html      # Entire app — HTML, CSS, and JS in one file
-├── README.md
-└── ANSWERS.md
-Features
-Pomodoro timer with Focus / Short Break / Long Break phases
-
-Configurable durations (focus, break, long break)
-
-Web Audio API chimes on session end and final countdown ticks
-
-Daily session history (persists across reloads, resets on new day)
-
-Day-streak tracking via localStorage
-
-Keyboard shortcuts: Space play/pause, R reset, S skip, +/- 1 min
-
-Responsive down to 360 px
-
-Accessibility: ARIA roles, labels, and keyboard-accessible controls
+├── index.html      # All-in-one file (HTML, CSS, and JavaScript)
+├── readme.md       # Project documentation
+└── answers.md      # Project answers/notes
