@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Focus - Pomodoro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07080f;
+  --glass:rgba(255,255,255,0.04);
+  --glass2:rgba(255,255,255,0.07);
+  --glass3:rgba(255,255,255,0.12);
+  --border:rgba(255,255,255,0.08);
+  --border2:rgba(255,255,255,0.16);
+  --text:#f0eff8;
+  --muted:rgba(240,239,248,0.55);
+  --faint:rgba(240,239,248,0.28);
+  --gold:#f0c060;
+  --gold2:#fad580;
+  --gold-dim:rgba(240,192,96,0.15);
+  --teal:#5ec4a8;
+  --teal2:#7fdec6;
+  --teal-dim:rgba(94,196,168,0.15);
+  --violet:#9b7fe8;
+  --violet2:#b99ef5;
+  --violet-dim:rgba(155,127,232,0.15);
+  --font-serif:'Instrument Serif',serif;
+  --font-sans:'Outfit',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);overflow-x:hidden}
+body{font-family:var(--font-sans);color:var(--text);min-height:100vh}
+#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+#app{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0 1.5rem 6rem}
+.topnav{width:100%;max-width:720px;display:flex;align-items:center;justify-content:space-between;padding:1.75rem 0 0}
+.logo-mark{display:flex;align-items:center;gap:10px}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold),0 0 24px rgba(240,192,96,0.4);animation:pulse-dot 2s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.8)}}
+.logo-text{font-size:13px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.nav-actions{display:flex;gap:8px}
+.nav-btn{background:var(--glass);border:1px solid var(--border);color:var(--muted);font-family:var(--font-sans);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:8px 16px;border-radius:100px;cursor:pointer;transition:all .2s;backdrop-filter:blur(12px)}
+.nav-btn:hover{background:var(--glass2);border-color:var(--border2);color:var(--text)}
+.nav-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.nav-btn.active{background:var(--gold-dim);border-color:rgba(240,192,96,.35);color:var(--gold)}
+.ambient-bar{width:100%;max-width:720px;margin-top:2rem;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ambient-date{font-size:12px;color:var(--faint);font-family:var(--font-mono)}
+.ambient-streak{display:flex;align-items:center;gap:6px}
+.streak-val{font-family:var(--font-mono);color:var(--gold);font-size:13px;font-weight:500}
+.phase-switcher{width:100%;max-width:560px;margin-top:1.75rem;display:flex;background:var(--glass);border:1px solid var(--border);border-radius:100px;padding:4px;gap:2px}
+.phase-tab{flex:1;padding:10px 8px;border:none;background:none;border-radius:100px;font-family:var(--font-sans);font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .25s}
+.phase-tab.active-focus{color:#1a1208;background:linear-gradient(135deg,var(--gold),var(--gold2));box-shadow:0 4px 20px rgba(240,192,96,.35)}
+.phase-tab.active-break{color:#061511;background:linear-gradient(135deg,var(--teal),var(--teal2));box-shadow:0 4px 20px rgba(94,196,168,.35)}
+.phase-tab.active-long{color:#120f1e;background:linear-gradient(135deg,var(--violet),var(--violet2));box-shadow:0 4px 20px rgba(155,127,232,.35)}
+.timer-card{width:100%;max-width:560px;margin-top:1.25rem;
+  background:linear-gradient(145deg,rgba(255,255,255,0.055),rgba(255,255,255,0.02));
+  border:1px solid var(--border2);border-radius:32px;padding:2.5rem 2rem;
+  backdrop-filter:blur(28px);
+  box-shadow:0 40px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08);
+  position:relative;overflow:hidden}
+.timer-card::before{content:'';position:absolute;top:-1px;left:20%;right:20%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent)}
+.ring-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:2rem}
+.ring-container{position:relative;width:260px;height:260px}
+.ring-svg,.tick-svg{position:absolute;inset:0;width:100%;height:100%}
+.ring-glow-layer{position:absolute;inset:-20px;border-radius:50%;pointer-events:none;transition:all .5s}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.time-big{font-family:var(--font-mono);font-size:clamp(52px,13vw,72px);font-weight:300;letter-spacing:-.04em;line-height:1;transition:color .4s}
+.time-phase{font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-top:7px}
+.time-total{font-family:var(--font-mono);font-size:11px;color:var(--faint);margin-top:4px}
+.controls{display:flex;align-items:center;justify-content:center;gap:14px}
+.ctrl-btn{width:48px;height:48px;border-radius:50%;border:1px solid var(--border2);background:var(--glass2);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;backdrop-filter:blur(8px);flex-shrink:0}
+.ctrl-btn:hover{background:var(--glass3);border-color:rgba(255,255,255,.28);color:var(--text);transform:scale(1.07)}
+.ctrl-btn:active{transform:scale(.94)}
+.ctrl-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.ctrl-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.btn-play{width:72px;height:72px;border-radius:50%;border:none;cursor:pointer;transition:all .22s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.btn-play:active{transform:scale(.92)}
+.btn-play:focus-visible{outline:3px solid var(--gold);outline-offset:4px}
+.btn-play svg{width:22px;height:22px;stroke:rgba(0,0,0,.85);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.btn-play.focus-mode{background:linear-gradient(145deg,var(--gold),#d4a030);box-shadow:0 8px 32px rgba(240,192,96,.45),0 2px 8px rgba(0,0,0,.4)}
+.btn-play.focus-mode:hover{box-shadow:0 12px 40px rgba(240,192,96,.65)}
+.btn-play.break-mode{background:linear-gradient(145deg,var(--teal),#3aaa8a);box-shadow:0 8px 32px rgba(94,196,168,.45)}
+.btn-play.long-mode{background:linear-gradient(145deg,var(--violet),#7a5ed0);box-shadow:0 8px 32px rgba(155,127,232,.45)}
+.progress-row{display:flex;margin-top:1.5rem;border-top:1px solid var(--border);padding-top:1.5rem}
+.progress-stat{flex:1;text-align:center;padding:0 8px;border-right:1px solid var(--border)}
+.progress-stat:last-child{border-right:none}
+.ps-label{font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--faint);margin-bottom:5px}
+.ps-val{font-family:var(--font-mono);font-size:20px;font-weight:400;color:var(--text)}
+.ps-val.gold{color:var(--gold)}
+.ps-val.teal{color:var(--teal)}
+.pomo-dots{display:flex;gap:8px;margin-top:1.25rem;justify-content:center}
+.pomo-dot{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--border2);transition:all .3s}
+.pomo-dot.done{background:var(--gold);border-color:var(--gold);box-shadow:0 0 8px rgba(240,192,96,.5)}
+.pomo-dot.active{border-color:var(--gold);animation:dot-pulse 1.2s ease-in-out infinite}
+@keyframes dot-pulse{0%,100%{box-shadow:0 0 0 0 rgba(240,192,96,.4)}50%{box-shadow:0 0 0 5px rgba(240,192,96,0)}}
+.panel{width:100%;max-width:560px;margin-top:1rem;background:var(--glass);border:1px solid var(--border2);border-radius:24px;padding:1.75rem;backdrop-filter:blur(20px)}
+.panel-title{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:1.25rem}
+.settings-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.sf label{font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:7px}
+.sf input{width:100%;height:44px;background:var(--glass2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:var(--font-mono);font-size:18px;text-align:center;padding:0 12px;outline:none;transition:all .2s}
+.sf input:focus{border-color:var(--gold);background:var(--gold-dim)}
+.settings-row2{display:flex;gap:12px;margin-top:12px}
+.stoggle{flex:1;display:flex;align-items:center;justify-content:space-between;background:var(--glass2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;cursor:pointer}
+.stoggle:hover{background:var(--glass3)}
+.st-label{font-size:12px;font-weight:500;color:var(--muted);pointer-events:none}
+.pill{width:36px;height:20px;border-radius:100px;border:1px solid var(--border2);background:var(--glass2);position:relative;transition:all .25s;pointer-events:none;flex-shrink:0}
+.pill.on{background:var(--gold);border-color:var(--gold)}
+.pill::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:white;transition:transform .25s;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.pill.on::after{transform:translateX(16px)}
+.apply-btn{width:100%;height:44px;margin-top:14px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;border-radius:12px;color:#1a1208;font-family:var(--font-sans);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s}
+.apply-btn:hover{box-shadow:0 4px 20px rgba(240,192,96,.4)}
+.quote-text{font-family:var(--font-serif);font-style:italic;font-size:15px;color:var(--muted);line-height:1.65}
+.quote-author{font-size:11px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);margin-top:8px}
+.history-section{width:100%;max-width:560px;margin-top:1.5rem}
+.history-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.history-title{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.history-total{font-family:var(--font-mono);font-size:12px;color:var(--gold)}
+.history-empty{font-size:13px;color:var(--faint);font-family:var(--font-mono);padding:.5rem 0}
+.history-list{display:flex;flex-direction:column;gap:8px}
+.hi{display:flex;align-items:center;gap:14px;background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:12px 16px;animation:slide-in .3s ease}
+@keyframes slide-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.hi-icon{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.hi-icon.ft{background:var(--gold-dim)}
+.hi-icon.bt{background:var(--teal-dim)}
+.hi-details{flex:1}
+.hi-dur{font-family:var(--font-mono);font-size:14px;font-weight:500;color:var(--text)}
+.hi-label{font-size:11px;color:var(--muted);margin-top:1px}
+.hi-time{font-family:var(--font-mono);font-size:11px;color:var(--faint)}
+.overlay{position:fixed;inset:0;z-index:999;pointer-events:none;display:flex;align-items:center;justify-content:center}
+.toast{background:linear-gradient(145deg,rgba(255,255,255,.1),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.2);border-radius:24px;padding:2rem 2.5rem;text-align:center;backdrop-filter:blur(32px);opacity:0;transform:scale(.8);box-shadow:0 40px 80px rgba(0,0,0,.6);transition:none}
+.toast.show{opacity:1;transform:scale(1);transition:opacity .35s ease,transform .35s cubic-bezier(.34,1.56,.64,1)}
+.toast.hide{opacity:0;transform:scale(.9);transition:opacity .28s ease,transform .28s ease}
+.toast-icon{font-size:48px;margin-bottom:12px;line-height:1}
+.toast-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px}
+.toast-sub{font-size:14px;color:var(--muted)}
+@media(max-width:480px){
+  #app{padding:0 1rem 4rem}
+  .ring-container{width:220px;height:220px}
+  .settings-grid{grid-template-columns:1fr 1fr}
+  .ambient-bar{flex-direction:column;align-items:flex-start;gap:4px}
+  .timer-card{padding:2rem 1.25rem}
+  .progress-row{flex-wrap:wrap}
+  .progress-stat{min-width:50%}
+  .progress-stat:nth-child(2){border-right:none}
+  .progress-stat:nth-child(3){border-top:1px solid var(--border);padding-top:12px;margin-top:4px}
+  .progress-stat:nth-child(4){border-top:1px solid var(--border);padding-top:12px;margin-top:4px;border-right:none}
+  .settings-row2{flex-direction:column}
+  .phase-tab{font-size:11px;padding:9px 4px}
+}
+@media(max-width:360px){
+  .ring-container{width:190px;height:190px}
+  .time-big{font-size:44px}
+  .btn-play{width:62px;height:62px}
+  .ctrl-btn{width:42px;height:42px}
+}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div id="app">
+
+  <nav class="topnav">
+    <div class="logo-mark">
+      <div class="logo-dot"></div>
+      <span class="logo-text">Focus</span>
+    </div>
+    <div class="nav-actions">
+      <button class="nav-btn" id="btn-quote">Quote</button>
+      <button class="nav-btn" id="btn-settings">Settings</button>
+    </div>
+  </nav>
+
+  <div class="ambient-bar">
+    <span class="ambient-date" id="date-display"></span>
+    <div class="ambient-streak">
+      <span style="font-size:14px">&#x1F525;</span>
+      <span id="streak-display" class="streak-val">0</span>
+      <span style="color:var(--faint);font-size:11px">day streak</span>
+    </div>
+  </div>
+
+  <div class="phase-switcher" role="tablist">
+    <button class="phase-tab" id="tab-focus" role="tab">Focus</button>
+    <button class="phase-tab" id="tab-break" role="tab">Break</button>
+    <button class="phase-tab" id="tab-long" role="tab">Long Break</button>
+    
+  </div>
+
+  <div class="timer-card">
+    <div class="ring-wrap">
+      <div class="ring-container">
+        <div class="ring-glow-layer" id="ring-glow"></div>
+        <svg class="tick-svg" viewBox="0 0 260 260" id="tick-svg" aria-hidden="true"></svg>
+        <svg class="ring-svg" viewBox="0 0 260 260" style="transform:rotate(-90deg)" aria-hidden="true">
+          <circle cx="130" cy="130" r="112" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"/>
+          <circle id="ring-prog" cx="130" cy="130" r="112" fill="none"
+            stroke-width="5" stroke-linecap="round"
+            stroke-dasharray="703.7" stroke-dashoffset="0"
+            style="transition:stroke-dashoffset .95s cubic-bezier(.4,0,.2,1),stroke .4s"/>
+          <circle cx="130" cy="130" r="100" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+        </svg>
+        <div class="ring-center">
+          <time class="time-big" id="time-display">25:00</time>
+          <div class="time-phase" id="phase-label">Focus</div>
+          <div class="time-total" id="total-label">25:00 session</div>
+        </div>
+      </div>
+      <div class="pomo-dots" id="pomo-dots"></div>
+    </div>
+
+    <div class="controls">
+      <button class="ctrl-btn" id="btn-reset" title="Reset (R)" aria-label="Reset">
+        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btn-minus" title="-1 min" aria-label="Minus 1 minute">
+        <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="btn-play focus-mode" id="btn-play" aria-label="Start">
+        <svg id="play-icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btn-plus" title="+1 min" aria-label="Plus 1 minute">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btn-skip" title="Skip (S)" aria-label="Skip">
+        <svg viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+      </button>
+    </div>
+
+    <div class="progress-row">
+      <div class="progress-stat"><div class="ps-label">Today</div><div class="ps-val gold" id="stat-today">0</div></div>
+      <div class="progress-stat"><div class="ps-label">Focus Time</div><div class="ps-val teal" id="stat-ftime">0m</div></div>
+      <div class="progress-stat"><div class="ps-label">Cycle</div><div class="ps-val" id="stat-cycle">1 / 4</div></div>
+      <div class="progress-stat"><div class="ps-label">Streak</div><div class="ps-val" id="stat-streak">0 days</div></div>
+    </div>
+  </div>
+
+  <div class="panel" id="settings-panel" style="display:none">
+    <div class="panel-title">Timer Settings</div>
+    <div class="settings-grid">
+      <div class="sf"><label for="s-focus">Focus (min)</label><input id="s-focus" type="number" min="1" max="99" value="25"/></div>
+      <div class="sf"><label for="s-break">Break (min)</label><input id="s-break" type="number" min="1" max="30" value="5"/></div>
+      <div class="sf"><label for="s-long">Long Break</label><input id="s-long" type="number" min="1" max="60" value="15"/></div>
+    </div>
+    <div class="settings-row2">
+      <div class="stoggle" id="wrap-auto"><span class="st-label">Auto-start next</span><div class="pill" id="pill-auto"></div></div>
+      <div class="stoggle" id="wrap-sound"><span class="st-label">Sound effects</span><div class="pill on" id="pill-sound"></div></div>
+    </div>
+    <button class="apply-btn" id="btn-apply">Apply Settings</button>
+  </div>
+
+  <div class="panel" id="quote-panel" style="display:none">
+    <div class="quote-text" id="quote-text"></div>
+    <div class="quote-author" id="quote-author"></div>
+  </div>
+
+  <section class="history-section">
+    <div class="history-hdr">
+      <h2 class="history-title">Today's Sessions</h2>
+      <span class="history-total" id="history-total"></span>
+    </div>
+    <div id="history-list" class="history-list"></div>
+  </section>
+
+</div>
+
+<div class="overlay" id="overlay" style="display:none">
+  <div class="toast" id="toast">
+    <div class="toast-icon" id="toast-icon"></div>
+    <div class="toast-title" id="toast-title"></div>
+    <div class="toast-sub" id="toast-sub"></div>
+  </div>
+</div>
+
+<script>
+// ── Ambient background ──────────────────────────────────────
+var bgCanvas = document.getElementById('bg-canvas');
+var bgCtx = bgCanvas.getContext('2d');
+var bgW, bgH, bgPts = [];
+function bgResize() { bgW = bgCanvas.width = window.innerWidth; bgH = bgCanvas.height = window.innerHeight; }
+function bgInit() {
+  bgPts = [];
+  for (var i = 0; i < 80; i++) {
+    bgPts.push({ x: Math.random()*bgW, y: Math.random()*bgH, r: 0.3+Math.random()*1.2,
+      vx: (Math.random()-.5)*.14, vy: (Math.random()-.5)*.14,
+      a: .1+Math.random()*.55, phase: Math.random()*Math.PI*2 });
+  }
+}
+bgResize(); bgInit();
+window.addEventListener('resize', function(){ bgResize(); bgInit(); });
+var bgT = 0;
+function bgDraw() {
+  bgCtx.clearRect(0,0,bgW,bgH);
+  var g1 = bgCtx.createRadialGradient(bgW*.5,bgH*.38,0,bgW*.5,bgH*.38,Math.max(bgW,bgH)*.6);
+  g1.addColorStop(0,'rgba(155,127,232,.04)'); g1.addColorStop(.5,'rgba(94,196,168,.02)'); g1.addColorStop(1,'transparent');
+  bgCtx.fillStyle=g1; bgCtx.fillRect(0,0,bgW,bgH);
+  var g2 = bgCtx.createRadialGradient(bgW*.5,bgH,0,bgW*.5,bgH,bgW*.5);
+  g2.addColorStop(0,'rgba(240,192,96,.04)'); g2.addColorStop(1,'transparent');
+  bgCtx.fillStyle=g2; bgCtx.fillRect(0,0,bgW,bgH);
+  bgT += .007;
+  for (var i=0; i<bgPts.length; i++) {
+    var p = bgPts[i];
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0)p.x=bgW; if(p.x>bgW)p.x=0; if(p.y<0)p.y=bgH; if(p.y>bgH)p.y=0;
+    bgCtx.beginPath(); bgCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    bgCtx.fillStyle='rgba(240,239,248,'+(p.a*(.55+.45*Math.sin(bgT*1.2+p.phase)))+')';
+    bgCtx.fill();
+  }
+  requestAnimationFrame(bgDraw);
+}
+bgDraw();
+
+// ── Tick marks ──────────────────────────────────────────────
+(function() {
+  var svg = document.getElementById('tick-svg'), h = '';
+  for (var i=0; i<60; i++) {
+    var ang = i/60*Math.PI*2 - Math.PI/2, major = (i%5===0);
+    var r1=118, r2=major?109:114;
+    var x1=(130+r1*Math.cos(ang)).toFixed(1), y1=(130+r1*Math.sin(ang)).toFixed(1);
+    var x2=(130+r2*Math.cos(ang)).toFixed(1), y2=(130+r2*Math.sin(ang)).toFixed(1);
+    h += '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+
+         '" stroke="rgba(255,255,255,'+(major?.13:.055)+')" stroke-width="'+(major?1.6:.85)+'" stroke-linecap="round"/>';
+  }
+  svg.innerHTML = h;
+})();
+
+// ── Storage helpers ─────────────────────────────────────────
+var HIST_KEY='focus_history_v3', CFG_KEY='focus_config_v2', STREAK_KEY='focus_streak_v1';
+function todayKey() { var d=new Date(); return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate(); }
+function pad2(n) { return String(n).padStart(2,'0'); }
+function fmtDur(s) { return pad2(Math.floor(s/60))+':'+pad2(s%60); }
+function fmtMin(s) { return s>=3600 ? Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m' : Math.floor(s/60)+'m'; }
+function fmtClock(ts) {
+  var d=new Date(ts), h=d.getHours()%12||12, m=pad2(d.getMinutes());
+  return h+':'+m+(d.getHours()>=12?'pm':'am');
+}
+function loadHistory() {
+  try { var r=localStorage.getItem(HIST_KEY); if(!r) return [];
+    var p=JSON.parse(r); return p.date===todayKey()?p.sessions:[]; } catch(e){ return []; }
+}
+function saveHistory(s) { localStorage.setItem(HIST_KEY, JSON.stringify({date:todayKey(),sessions:s})); }
+function loadConfig() { try { return JSON.parse(localStorage.getItem(CFG_KEY))||{}; } catch(e){ return {}; } }
+function saveConfig(c) { localStorage.setItem(CFG_KEY, JSON.stringify(c)); }
+function loadStreak() { try { return JSON.parse(localStorage.getItem(STREAK_KEY))||{count:0,lastDate:''}; } catch(e){ return {count:0,lastDate:''}; } }
+function saveStreak(s) { localStorage.setItem(STREAK_KEY, JSON.stringify(s)); }
+
+// ── State ────────────────────────────────────────────────────
+var cfg = loadConfig();
+var S = {
+  phase: 'focus', status: 'idle',
+  focusMins: cfg.focusMins||25, breakMins: cfg.breakMins||5, longMins: cfg.longMins||15,
+  autoStart: cfg.autoStart||false, soundOn: cfg.soundOn!==undefined?cfg.soundOn:true,
+  secondsLeft: (cfg.focusMins||25)*60, totalSeconds: (cfg.focusMins||25)*60,
+  pomoCycle: 0, pomoMax: 4,
+  history: loadHistory(), showSettings: false, showQuote: false, streak: loadStreak()
+};
+(function(){
+  var t=todayKey(), y=new Date(); y.setDate(y.getDate()-1);
+  var yk=y.getFullYear()+'-'+y.getMonth()+'-'+y.getDate();
+  if(S.streak.lastDate!==t && S.streak.lastDate!==yk){ S.streak={count:0,lastDate:''}; saveStreak(S.streak); }
+})();
+
+// ── Audio ────────────────────────────────────────────────────
+var audioCtx = null;
+function getAC() { if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+function playChime(type) {
+  if (!S.soundOn) return;
+  try {
+    var ac = getAC();
+    var seqs = {
+      focus_done: [[528,0],[659,.18],[784,.36],[1046,.56]],
+      break_done: [[880,0],[784,.15],[659,.3]],
+      tick: [[880,0]], start: [[440,0],[523,.12]]
+    };
+    var seq = seqs[type] || seqs.tick;
+    for (var i=0; i<seq.length; i++) {
+      var freq=seq[i][0], delay=seq[i][1];
+      var o=ac.createOscillator(), g=ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type = type==='tick'?'triangle':'sine';
+      o.frequency.setValueAtTime(freq, ac.currentTime+delay);
+      var vol = type==='tick'?.05:.18;
+      g.gain.setValueAtTime(0, ac.currentTime+delay);
+      g.gain.linearRampToValueAtTime(vol, ac.currentTime+delay+.025);
+      g.gain.exponentialRampToValueAtTime(.001, ac.currentTime+delay+.65);
+      o.start(ac.currentTime+delay); o.stop(ac.currentTime+delay+.7);
+    }
+  } catch(e) {}
+}
+
+// ── Quotes ───────────────────────────────────────────────────
+var QUOTES = [
+  {text:'The secret of getting ahead is getting started.', author:'Mark Twain'},
+  {text:'Deep work is the superpower of the 21st century.', author:'Cal Newport'},
+  {text:'Focus is the art of knowing what to ignore.', author:'James Clear'},
+  {text:'It is not that I am so smart, just that I stay with problems longer.', author:'Albert Einstein'},
+  {text:'You do not rise to your goals. You fall to the level of your systems.', author:'James Clear'},
+  {text:'The quality of your attention determines the quality of your thinking.', author:'Anonymous'},
+  {text:'A year from now you may wish you had started today.', author:'Karen Lamb'},
+  {text:'One task at a time. All the way through.', author:'Cal Newport'},
+  {text:'What you do today can improve all your tomorrows.', author:'Ralph Marston'},
+  {text:'The greatest victory is that which requires no battle.', author:'Sun Tzu'}
+];
+var currentQuote = QUOTES[Math.floor(Math.random()*QUOTES.length)];
+
+// ── Ticker ───────────────────────────────────────────────────
+var ticker = null;
+function startTicker() {
+  stopTicker();
+  ticker = setInterval(function() {
+    if (S.status !== 'running') return;
+    S.secondsLeft--;
+    if (S.secondsLeft <= 0) { handleEnd(); return; }
+    if (S.secondsLeft <= 5 && S.soundOn) playChime('tick');
+    render();
+  }, 1000);
+}
+function stopTicker() { if(ticker){ clearInterval(ticker); ticker=null; } }
+
+// ── Phase helpers ────────────────────────────────────────────
+function phaseSeconds(ph) {
+  if(ph==='focus') return S.focusMins*60;
+  if(ph==='break') return S.breakMins*60;
+  return S.longMins*60;
+}
+function getAccent() {
+  if(S.phase==='break') return {main:'var(--teal)',btn:'break-mode',rgb:'94,196,168'};
+  if(S.phase==='long')  return {main:'var(--violet)',btn:'long-mode',rgb:'155,127,232'};
+  return {main:'var(--gold)',btn:'focus-mode',rgb:'240,192,96'};
+}
+function getPhaseLabel() {
+  if(S.status==='paused') return 'Paused';
+  if(S.phase==='break') return 'Short Break';
+  if(S.phase==='long')  return 'Long Break';
+  return 'Focus';
+}
+function saveCfg() {
+  saveConfig({focusMins:S.focusMins,breakMins:S.breakMins,longMins:S.longMins,autoStart:S.autoStart,soundOn:S.soundOn});
+}
+function updateStreak() {
+  var t=todayKey();
+  if(S.streak.lastDate===t) return;
+  var y=new Date(); y.setDate(y.getDate()-1);
+  var yk=y.getFullYear()+'-'+y.getMonth()+'-'+y.getDate();
+  S.streak.count = S.streak.lastDate===yk ? S.streak.count+1 : 1;
+  S.streak.lastDate = t;
+  saveStreak(S.streak);
+}
+
+// ── Actions ──────────────────────────────────────────────────
+function togglePlay() {
+  if (S.status==='idle' || S.status==='paused') {
+    S.status='running'; playChime('start'); startTicker();
+  } else {
+    S.status='paused'; stopTicker();
+  }
+  render();
+}
+function doReset() { stopTicker(); S.status='idle'; S.secondsLeft=phaseSeconds(S.phase); S.totalSeconds=S.secondsLeft; render(); }
+function doSkip() {
+  stopTicker();
+  var order=['focus','break','long'];
+  S.phase = order[(order.indexOf(S.phase)+1)%3];
+  S.secondsLeft=phaseSeconds(S.phase); S.totalSeconds=S.secondsLeft; S.status='idle'; render();
+}
+function switchPhase(ph) { if(S.status==='running') return; S.phase=ph; S.secondsLeft=phaseSeconds(ph); S.totalSeconds=S.secondsLeft; S.status='idle'; render(); }
+function adjustTime(delta) { if(S.status==='running') return; var n=Math.max(60,Math.min(5999,S.secondsLeft+delta)); S.secondsLeft=n; S.totalSeconds=n; render(); }
+function toggleSettings() { S.showSettings=!S.showSettings; render(); }
+function toggleQuote() { S.showQuote=!S.showQuote; currentQuote=QUOTES[Math.floor(Math.random()*QUOTES.length)]; render(); }
+function toggleAutoStart() { S.autoStart=!S.autoStart; document.getElementById('pill-auto').className='pill'+(S.autoStart?' on':''); saveCfg(); }
+function toggleSound()    { S.soundOn=!S.soundOn;    document.getElementById('pill-sound').className='pill'+(S.soundOn?' on':'');    saveCfg(); }
+function applySettings() {
+  S.focusMins = Math.max(1,parseInt(document.getElementById('s-focus').value)||25);
+  S.breakMins = Math.max(1,parseInt(document.getElementById('s-break').value)||5);
+  S.longMins  = Math.max(1,parseInt(document.getElementById('s-long').value)||15);
+  saveCfg(); S.showSettings=false; doReset();
+}
+function handleEnd() {
+  stopTicker();
+  var wasFocus = S.phase==='focus';
+  if (wasFocus) {
+    playChime('focus_done');
+    S.pomoCycle = (S.pomoCycle+1)%S.pomoMax;
+    S.history = [{id:Date.now(),type:'focus',duration:S.totalSeconds,ts:Date.now()}].concat(S.history);
+    saveHistory(S.history); updateStreak(); showToast('focus');
+  } else {
+    playChime('break_done'); showToast('break');
+  }
+  var nextPhase = wasFocus ? (S.pomoCycle===0?'long':'break') : 'focus';
+  S.phase=nextPhase; S.secondsLeft=phaseSeconds(nextPhase); S.totalSeconds=S.secondsLeft;
+  S.status = S.autoStart?'running':'idle';
+  if (S.autoStart) startTicker();
+  render();
+}
+
+// ── Toast ────────────────────────────────────────────────────
+function showToast(type) {
+  var overlay=document.getElementById('overlay'), toast=document.getElementById('toast');
+  document.getElementById('toast-icon').innerHTML  = type==='focus'?'&#x1F3AF;':'&#x26A1;';
+  document.getElementById('toast-title').textContent = type==='focus'?'Focus Complete!':'Break\'s Over!';
+  document.getElementById('toast-sub').textContent   = type==='focus'
+    ? 'Session '+(S.pomoCycle===0?S.pomoMax:S.pomoCycle)+' of '+S.pomoMax+' done. Time to rest.'
+    : 'Ready for another round of deep work?';
+  overlay.style.display='flex'; toast.className='toast';
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ toast.className='toast show'; }); });
+  setTimeout(function(){
+    toast.className='toast hide';
+    setTimeout(function(){ overlay.style.display='none'; toast.className='toast'; }, 300);
+  }, 2400);
+}
+
+// ── Render ───────────────────────────────────────────────────
+function render() {
+  var acc = getAccent();
+  var prog = S.totalSeconds>0 ? S.secondsLeft/S.totalSeconds : 1;
+  var CIRC = 703.7, timeStr = fmtDur(S.secondsLeft);
+
+  document.getElementById('ring-prog').style.strokeDashoffset = CIRC*(1-prog);
+  document.getElementById('ring-prog').style.stroke = acc.main;
+
+  var intensity = S.status==='running'?.2:.08;
+  document.getElementById('ring-glow').style.background =
+    'radial-gradient(circle,rgba('+acc.rgb+','+intensity+') 0%,transparent 70%)';
+
+  var td = document.getElementById('time-display');
+  td.textContent = timeStr; td.style.color = acc.main;
+  document.getElementById('phase-label').textContent = getPhaseLabel();
+  document.getElementById('total-label').textContent = fmtDur(S.totalSeconds)+' session';
+
+  var pb = document.getElementById('btn-play');
+  pb.className = 'btn-play '+acc.btn;
+  pb.setAttribute('aria-label', S.status==='running'?'Pause':'Start');
+  document.getElementById('play-icon').innerHTML = S.status==='running'
+    ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
+    : '<polygon points="5 3 19 12 5 21 5 3"/>';
+
+  var phases = ['focus','break','long'];
+  for (var i=0; i<phases.length; i++) {
+    var ph = phases[i], tab = document.getElementById('tab-'+ph);
+    tab.className = 'phase-tab' + (S.phase===ph?' active-'+ph:'');
+    tab.setAttribute('aria-selected', S.phase===ph);
+  }
+
+  var dots = document.getElementById('pomo-dots'), dotHTML = '';
+  for (var j=0; j<S.pomoMax; j++) {
+    var done=(j<S.pomoCycle), active=(j===S.pomoCycle&&S.phase==='focus');
+    dotHTML += '<div class="pomo-dot'+(done?' done':active?' active':'')+'" aria-hidden="true"></div>';
+  }
+  dots.innerHTML = dotHTML;
+
+  var focusSessions = S.history.filter(function(h){ return h.type==='focus'; });
+  var totalFocusSecs = focusSessions.reduce(function(a,b){ return a+b.duration; }, 0);
+  document.getElementById('stat-today').textContent = focusSessions.length;
+  document.getElementById('stat-ftime').textContent = fmtMin(totalFocusSecs);
+  document.getElementById('stat-cycle').textContent = (S.pomoCycle+1)+' / '+S.pomoMax;
+  document.getElementById('stat-streak').textContent = S.streak.count>0 ? S.streak.count+' day'+(S.streak.count!==1?'s':'') : '0 days';
+
+  document.getElementById('date-display').textContent =
+    new Date().toLocaleDateString('en-GB',{weekday:'long',month:'long',day:'numeric'});
+  document.getElementById('streak-display').textContent = S.streak.count;
+
+  var sp = document.getElementById('settings-panel');
+  sp.style.display = S.showSettings?'block':'none';
+  if (S.showSettings) {
+    document.getElementById('s-focus').value = S.focusMins;
+    document.getElementById('s-break').value = S.breakMins;
+    document.getElementById('s-long').value  = S.longMins;
+    document.getElementById('pill-auto').className  = 'pill'+(S.autoStart?' on':'');
+    document.getElementById('pill-sound').className = 'pill'+(S.soundOn?' on':'');
+  }
+  document.getElementById('btn-settings').className = 'nav-btn'+(S.showSettings?' active':'');
+
+  var qp = document.getElementById('quote-panel');
+  qp.style.display = S.showQuote?'block':'none';
+  if (S.showQuote) {
+    document.getElementById('quote-text').textContent   = '"' + currentQuote.text + '"';
+    document.getElementById('quote-author').textContent = '-- ' + currentQuote.author;
+  }
+  document.getElementById('btn-quote').className = 'nav-btn'+(S.showQuote?' active':'');
+
+  var ht = document.getElementById('history-total');
+  ht.textContent = focusSessions.length>0 ? focusSessions.length+' sessions - '+fmtMin(totalFocusSecs) : '';
+
+  var hl = document.getElementById('history-list');
+  if (S.history.length===0) {
+    hl.innerHTML = '<p class="history-empty">No sessions yet. Start the timer and build your streak.</p>';
+  } else {
+    var html = '';
+    for (var k=0; k<S.history.length; k++) {
+      var item=S.history[k], isFocus=(item.type==='focus');
+      html += '<div class="hi">';
+      html += '<div class="hi-icon '+(isFocus?'ft':'bt')+'">'+(isFocus?'&#x1F3AF;':'&#x2615;')+'</div>';
+      html += '<div class="hi-details"><div class="hi-dur">'+fmtDur(item.duration)+'</div>';
+      html += '<div class="hi-label">'+(isFocus?'Focus session':'Break')+'</div></div>';
+      html += '<div class="hi-time">'+fmtMin(item.duration)+' - '+fmtClock(item.ts)+'</div>';
+      html += '</div>';
+    }
+    hl.innerHTML = html;
+  }
+
+  document.title = timeStr + ' - ' + getPhaseLabel() + ' - Focus';
+}
+
+// ── Event wiring ─────────────────────────────────────────────
+document.getElementById('btn-play').addEventListener('click', togglePlay);
+document.getElementById('btn-reset').addEventListener('click', doReset);
+document.getElementById('btn-minus').addEventListener('click', function(){ adjustTime(-60); });
+document.getElementById('btn-plus').addEventListener('click',  function(){ adjustTime(60);  });
+document.getElementById('btn-skip').addEventListener('click', doSkip);
+document.getElementById('btn-settings').addEventListener('click', toggleSettings);
+document.getElementById('btn-quote').addEventListener('click', toggleQuote);
+document.getElementById('btn-apply').addEventListener('click', applySettings);
+document.getElementById('wrap-auto').addEventListener('click', toggleAutoStart);
+document.getElementById('wrap-sound').addEventListener('click', toggleSound);
+document.getElementById('tab-focus').addEventListener('click', function(){ switchPhase('focus'); });
+document.getElementById('tab-break').addEventListener('click', function(){ switchPhase('break'); });
+document.getElementById('tab-long').addEventListener('click',  function(){ switchPhase('long');  });
+
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName==='INPUT') return;
+  if (e.code==='Space')  { e.preventDefault(); togglePlay(); }
+  else if (e.code==='KeyR') doReset();
+  else if (e.code==='KeyS') doSkip();
+  else if (e.code==='Equal'||e.code==='NumpadAdd')      adjustTime(60);
+  else if (e.code==='Minus'||e.code==='NumpadSubtract') adjustTime(-60);
+});
+
+// ── Init ─────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
